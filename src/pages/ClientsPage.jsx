@@ -1,168 +1,241 @@
+// ClientsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-// Import Link for navigation
-import { Link } from 'react-router-dom'; // Added Link here
+import { Link } from 'react-router-dom';
 
 function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [newClientName, setNewClientName] = useState('');
+  // State for Add New Client form
+  const [newClientContactName, setNewClientContactName] = useState(''); // Changed from newClientName
+  const [newClientCompanyName, setNewClientCompanyName] = useState(''); // << NEW for Company Name
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
   const [newClientWebsite, setNewClientWebsite] = useState('');
+  const [newClientVatNumber, setNewClientVatNumber] = useState('');
 
+  // State for Edit Client form
   const [editingClient, setEditingClient] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editContactName, setEditContactName] = useState(''); // Changed from editName
+  const [editCompanyName, setEditCompanyName] = useState(''); // << NEW for Company Name
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editVatNumber, setEditVatNumber] = useState('');
 
-  // Function to fetch clients (kept the same)
   const fetchClients = async () => {
+    setLoading(true);
     try {
       const clientsCollectionRef = collection(db, 'clients');
       const querySnapshot = await getDocs(clientsCollectionRef);
-
-      const clientsList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const clientsList = querySnapshot.docs.map(docData => ({
+        id: docData.id,
+        ...docData.data()
       }));
-
       setClients(clientsList);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching clients:", error);
       alert("Failed to fetch clients. See console for details.");
+    } finally {
       setLoading(false);
     }
   };
 
-  // Fetch clients when the component mounts (kept the same)
   useEffect(() => {
     fetchClients();
   }, []);
 
-  // Function to handle adding a new client (kept the same)
   const handleAddClient = async (e) => {
     e.preventDefault();
-
-    if (!newClientName.trim()) {
-      alert("Client name is required!");
+    // Company name is now the primary identifier for the "client" from a business perspective
+    if (!newClientCompanyName.trim() && !newClientContactName.trim()) {
+      alert("Either Company Name or Contact Name is required!");
       return;
     }
-
     const newClient = {
-      name: newClientName, email: newClientEmail, phone: newClientPhone,
-      address: newClientAddress, website: newClientWebsite, createdAt: new Date(),
+      companyName: newClientCompanyName.trim(), // << Store Company Name
+      contactName: newClientContactName.trim(), // << Store Contact Person Name (was 'name')
+      email: newClientEmail.trim(),
+      phone: newClientPhone.trim(),
+      address: newClientAddress.trim(),
+      website: newClientWebsite.trim(),
+      vatNumber: newClientVatNumber.trim(),
+      createdAt: new Date(),
     };
-
     try {
-      const clientsCollectionRef = collection(db, 'clients');
-      await addDoc(clientsCollectionRef, newClient);
+      await addDoc(collection(db, 'clients'), newClient);
       console.log("New client added successfully!");
-      setNewClientName(''); setNewClientEmail(''); setNewClientPhone(''); setNewClientAddress(''); setNewClientWebsite('');
+      setNewClientContactName('');
+      setNewClientCompanyName('');
+      setNewClientEmail('');
+      setNewClientPhone('');
+      setNewClientAddress('');
+      setNewClientWebsite('');
+      setNewClientVatNumber('');
       fetchClients();
-    } catch (error) { console.error("Error adding client:", error); alert("Failed to add client. See console for details."); }
+    } catch (error) {
+      console.error("Error adding client:", error);
+      alert("Failed to add client. See console for details.");
+    }
   };
 
-  // Function to handle deleting a client (kept the same)
   const handleDeleteClient = async (clientId) => {
     if (window.confirm("Are you sure you want to delete this client?")) {
       try {
-        const clientDocRef = doc(db, 'clients', clientId);
-        await deleteDoc(clientDocRef);
-        console.log(`Client with ID ${clientId} deleted successfully!`);
-        // Filter the client list locally for faster UI update
+        await deleteDoc(doc(db, 'clients', clientId));
         setClients(prevClients => prevClients.filter(client => client.id !== clientId));
-        // Or re-fetch: fetchClients();
-      } catch (error) { console.error("Error deleting client:", error); alert("Failed to delete client. See console for details."); }
+      } catch (error) {
+        console.error("Error deleting client:", error);
+        alert("Failed to delete client. See console for details.");
+      }
     }
   };
 
-  // Function to handle clicking the Edit button (kept the same)
   const handleEditClick = (client) => {
     setEditingClient(client);
-    setEditName(client.name || ''); setEditEmail(client.email || ''); setEditPhone(client.phone || '');
-    setEditAddress(client.address || ''); setEditWebsite(client.website || '');
+    setEditCompanyName(client.companyName || ''); // << Populate Company Name
+    setEditContactName(client.contactName || ''); // << Populate Contact Name
+    setEditEmail(client.email || '');
+    setEditPhone(client.phone || '');
+    setEditAddress(client.address || '');
+    setEditWebsite(client.website || '');
+    setEditVatNumber(client.vatNumber || '');
   };
 
-  // Function to handle changes in the edit form inputs (kept the same)
   const handleEditInputChange = (e) => {
     const { id, value } = e.target;
-    if (id === 'editName') setEditName(value); else if (id === 'editEmail') setEditEmail(value);
-    else if (id === 'editPhone') setEditPhone(value); else if (id === 'editAddress') setEditAddress(value);
+    if (id === 'editCompanyName') setEditCompanyName(value);
+    else if (id === 'editContactName') setEditContactName(value);
+    else if (id === 'editEmail') setEditEmail(value);
+    else if (id === 'editPhone') setEditPhone(value);
+    else if (id === 'editAddress') setEditAddress(value);
     else if (id === 'editWebsite') setEditWebsite(value);
+    else if (id === 'editVatNumber') setEditVatNumber(value);
   };
 
-  // Function to handle saving the edited client (kept the same)
   const handleUpdateClient = async (e) => {
     e.preventDefault();
-    if (!editName.trim()) { alert("Client name is required!"); return; }
-    if (!editingClient) { alert("No client selected for editing."); return; }
+    if (!editCompanyName.trim() && !editContactName.trim()) {
+      alert("Either Company Name or Contact Name is required!");
+      return;
+    }
+    if (!editingClient) return;
+
     const updatedClientData = {
-      name: editName, email: editEmail, phone: editPhone,
-      address: editAddress, website: editWebsite, updatedAt: new Date(),
+      companyName: editCompanyName.trim(), // << Update Company Name
+      contactName: editContactName.trim(), // << Update Contact Name
+      email: editEmail.trim(),
+      phone: editPhone.trim(),
+      address: editAddress.trim(),
+      website: editWebsite.trim(),
+      vatNumber: editVatNumber.trim(),
+      updatedAt: new Date(),
     };
     try {
-      const clientDocRef = doc(db, 'clients', editingClient.id);
-      await updateDoc(clientDocRef, updatedClientData);
-      console.log(`Client with ID ${editingClient.id} updated successfully!`);
-      setEditingClient(null); setEditName(''); setEditEmail(''); setEditPhone(''); setEditAddress(''); setEditWebsite('');
-      fetchClients(); // Re-fetch to show updated list
-    } catch (error) { console.error("Error updating client:", error); alert("Failed to update client. See console for details."); }
+      await updateDoc(doc(db, 'clients', editingClient.id), updatedClientData);
+      setEditingClient(null);
+      fetchClients(); // Refresh client list
+    } catch (error) {
+      console.error("Error updating client:", error);
+      alert("Failed to update client. See console for details.");
+    }
   };
 
-  // Function to handle canceling editing (kept the same)
   const handleCancelEdit = () => {
-    setEditingClient(null); setEditName(''); setEditEmail(''); setEditPhone(''); setEditAddress(''); setEditWebsite('');
+    setEditingClient(null);
+    // Clear all edit fields
+    setEditCompanyName('');
+    setEditContactName('');
+    setEditEmail('');
+    setEditPhone('');
+    setEditAddress('');
+    setEditWebsite('');
+    setEditVatNumber('');
   };
 
-
-  // Render the UI (Updated to include Link to detail page)
   return (
     <div>
       <h1>Clients Management</h1>
 
-      {/* Conditionally show the Add New Client form OR the Edit Client form */}
-      {!editingClient && (
+      {!editingClient ? (
         <>
           <h2>Add New Client</h2>
           <form onSubmit={handleAddClient}>
-             {/* ... Add form inputs (kept the same) ... */}
-             <div> <label htmlFor="name">Name:</label> <input id="name" type="text" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} required /> </div>
-             <div> <label htmlFor="email">Email:</label> <input id="email" type="email" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} /> </div>
-             <div> <label htmlFor="phone">Phone:</label> <input id="phone" type="tel" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} /> </div>
-             <div> <label htmlFor="address">Address:</label> <textarea id="address" value={newClientAddress} onChange={(e) => setNewClientAddress(e.target.value)} /> </div>
-             <div> <label htmlFor="website">Website:</label> <input id="website" type="url" value={newClientWebsite} onChange={(e) => setNewClientWebsite(e.target.value)} /> </div>
-             <button type="submit">Add Client</button>
+            <div>
+              <label htmlFor="newClientCompanyName">Company Name:</label>
+              <input id="newClientCompanyName" type="text" value={newClientCompanyName} onChange={(e) => setNewClientCompanyName(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientContactName">Contact Person Name:</label>
+              <input id="newClientContactName" type="text" value={newClientContactName} onChange={(e) => setNewClientContactName(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientEmail">Email:</label>
+              <input id="newClientEmail" type="email" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientPhone">Phone:</label>
+              <input id="newClientPhone" type="tel" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientVatNumber">VAT Number:</label>
+              <input id="newClientVatNumber" type="text" value={newClientVatNumber} onChange={(e) => setNewClientVatNumber(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientAddress">Address:</label>
+              <textarea id="newClientAddress" value={newClientAddress} onChange={(e) => setNewClientAddress(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="newClientWebsite">Website:</label>
+              <input id="newClientWebsite" type="url" value={newClientWebsite} onChange={(e) => setNewClientWebsite(e.target.value)} />
+            </div>
+            <button type="submit">Add Client</button>
+          </form>
+        </>
+      ) : (
+        <>
+          <h2>Edit Client: {editingClient.companyName || editingClient.contactName}</h2>
+          <form onSubmit={handleUpdateClient}>
+            <div>
+              <label htmlFor="editCompanyName">Company Name:</label>
+              <input id="editCompanyName" type="text" value={editCompanyName} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editContactName">Contact Person Name:</label>
+              <input id="editContactName" type="text" value={editContactName} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editEmail">Email:</label>
+              <input id="editEmail" type="email" value={editEmail} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editPhone">Phone:</label>
+              <input id="editPhone" type="tel" value={editPhone} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editVatNumber">VAT Number:</label>
+              <input id="editVatNumber" type="text" value={editVatNumber} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editAddress">Address:</label>
+              <textarea id="editAddress" value={editAddress} onChange={handleEditInputChange} />
+            </div>
+            <div>
+              <label htmlFor="editWebsite">Website:</label>
+              <input id="editWebsite" type="url" value={editWebsite} onChange={handleEditInputChange} />
+            </div>
+            <button type="submit">Save Changes</button>
+            <button type="button" onClick={handleCancelEdit} style={{ marginLeft: '10px' }}> Cancel Edit </button>
           </form>
         </>
       )}
 
-      {editingClient && (
-        <>
-          <h2>Edit Client</h2>
-           {/* ... Edit form inputs (kept the same) ... */}
-           <form onSubmit={handleUpdateClient}>
-             <div> <label htmlFor="editName">Name:</label> <input id="editName" type="text" value={editName} onChange={handleEditInputChange} required /> </div>
-             <div> <label htmlFor="editEmail">Email:</label> <input id="editEmail" type="email" value={editEmail} onChange={handleEditInputChange} /> </div>
-             <div> <label htmlFor="editPhone">Phone:</label> <input id="editPhone" type="tel" value={editPhone} onChange={handleEditInputChange} /> </div>
-             <div> <label htmlFor="editAddress">Address:</label> <textarea id="editAddress" value={editAddress} onChange={handleEditInputChange} /> </div>
-             <div> <label htmlFor="editWebsite">Website:</label> <input id="editWebsite" type="url" value={editWebsite} onChange={handleEditInputChange} /> </div>
-             <button type="submit">Save Changes</button>
-             <button type="button" onClick={handleCancelEdit} style={{ marginLeft: '10px' }}> Cancel Edit </button>
-           </form>
-         </>
-       )}
-
-
       <hr />
 
-      {/* Display the list of clients (Updated to include Link to detail page) */}
       <h2>Client List</h2>
       {loading && <p>Loading clients...</p>}
       {!loading && clients.length === 0 && <p>No clients found yet.</p>}
@@ -170,21 +243,20 @@ function ClientsPage() {
         <ul>
           {clients.map(client => (
             <li key={client.id} style={{ marginBottom: '10px', padding: '10px', border: '1px solid #eee', borderRadius: '5px' }}>
-               {/* --- Wrap client name or a dedicated link with <Link> --- */}
-               {/* The 'to' prop dynamically creates the URL using the client.id */}
-               <Link to={`/clients/${client.id}`} style={{ textDecoration: 'none', fontWeight: 'bold' }}>
-                 {client.name} {/* This will be the clickable text */}
-               </Link>
-               {' - '}
-               {client.email || 'N/A'} {client.phone && `(${client.phone})`}
-
-               {/* Add Edit and Delete buttons (kept the same) */}
-               <button onClick={() => handleEditClick(client)} style={{ marginLeft: '10px' }}>
-                   Edit
-               </button>
-               <button onClick={() => handleDeleteClient(client.id)} style={{ marginLeft: '5px', color: 'red' }}>
-                   Delete
-               </button>
+              <Link to={`/clients/${client.id}`} style={{ textDecoration: 'none', fontWeight: 'bold' }}>
+                {client.companyName || client.contactName} {/* Display company name or contact name */}
+              </Link>
+              {client.companyName && client.contactName && ` (Contact: ${client.contactName})`}
+              {' - '}
+              {client.email || 'N/A'}
+              {client.phone && ` (${client.phone})`}
+              {client.vatNumber && ` - VAT: ${client.vatNumber}`}
+              <button onClick={() => handleEditClick(client)} style={{ marginLeft: '10px' }}>
+                  Edit
+              </button>
+              <button onClick={() => handleDeleteClient(client.id)} style={{ marginLeft: '5px', color: 'red' }}>
+                  Delete
+              </button>
             </li>
           ))}
         </ul>
